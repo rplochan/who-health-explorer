@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WHO Health Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07090f;
+    --surface: #0e1420;
+    --card: #131b2e;
+    --border: #1a2640;
+    --accent: #00e5a0;
+    --accent2: #3d8bff;
+    --accent3: #ff6b35;
+    --warn: #ffd166;
+    --text: #dce8f5;
+    --muted: #4a5f7a;
+    --dim: #8a9db5;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb { position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0; }
+  .orb1 { width: 500px; height: 500px; background: rgba(0,229,160,0.05); top: -100px; left: -100px; }
+  .orb2 { width: 400px; height: 400px; background: rgba(61,139,255,0.05); bottom: -100px; right: -100px; }
+  .container { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
+
+  header { padding: 48px 0 32px; text-align: center; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+  .header-tag {
+    display: inline-block; font-size: 10px; letter-spacing: 4px; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 16px; padding: 6px 16px;
+    border: 1px solid rgba(0,229,160,0.3); border-radius: 2px;
+  }
+  h1 { font-family: 'Playfair Display', serif; font-size: clamp(36px, 6vw, 72px); font-weight: 900; line-height: 1; letter-spacing: -2px; margin-bottom: 12px; }
+  h1 span { color: var(--accent); font-style: italic; }
+  .subtitle { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+
+  .search-section { margin-bottom: 40px; }
+  .search-wrap { position: relative; max-width: 600px; margin: 0 auto; }
+  .search-wrap input {
+    width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 4px;
+    padding: 18px 80px 18px 24px; font-family: 'DM Mono', monospace; font-size: 14px;
+    color: var(--text); outline: none; transition: border-color 0.2s; letter-spacing: 0.5px;
+  }
+  .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,229,160,0.1); }
+  .search-wrap input::placeholder { color: var(--muted); }
+  .search-btn {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: var(--accent); color: #000; border: none; border-radius: 3px;
+    padding: 10px 16px; font-family: 'DM Mono', monospace; font-size: 11px;
+    font-weight: 500; cursor: pointer; letter-spacing: 1px; transition: opacity 0.2s;
+  }
+  .search-btn:hover { opacity: 0.85; }
+  #suggestions {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--card); border: 1px solid var(--border); border-radius: 4px;
+    max-height: 220px; overflow-y: auto; z-index: 100; display: none;
+  }
+  #suggestions.show { display: block; }
+  .suggestion-item {
+    padding: 12px 20px; cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border); transition: background 0.15s;
+  }
+  .suggestion-item:last-child { border-bottom: none; }
+  .suggestion-item:hover { background: var(--surface); }
+  .suggestion-item .s-flag { font-size: 20px; }
+  .suggestion-item .s-name { color: var(--text); }
+  .suggestion-item .s-region { color: var(--muted); font-size: 11px; margin-left: auto; }
+
+  .quick-picks { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+  .pick-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--dim);
+    padding: 6px 14px; border-radius: 2px; font-family: 'DM Mono', monospace;
+    font-size: 11px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .pick-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  #loading { display: none; text-align: center; padding: 60px; color: var(--muted); font-size: 12px; letter-spacing: 2px; }
+  .loader { width: 40px; height: 40px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #error { display: none; text-align: center; padding: 40px; color: var(--accent3); font-size: 13px; }
+  #results { display: none; animation: fadeUp 0.4s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  .country-hero {
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 32px; margin-bottom: 24px; display: flex; align-items: center;
+    gap: 32px; position: relative; overflow: hidden;
+  }
+  .country-hero::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), transparent);
+  }
+  .flag-big { font-size: 72px; line-height: 1; flex-shrink: 0; }
+  .country-info h2 { font-family: 'Playfair Display', serif; font-size: 40px; font-weight: 900; letter-spacing: -1px; margin-bottom: 6px; }
+  .country-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 12px; }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .meta-label { font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+  .meta-value { font-size: 14px; color: var(--text); }
+  .region-badge {
+    display: inline-block; background: rgba(61,139,255,0.1); border: 1px solid rgba(61,139,255,0.3);
+    color: var(--accent2); padding: 3px 10px; border-radius: 2px; font-size: 10px;
+    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  .section-label {
+    font-size: 10px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
+    margin-bottom: 16px; border-left: 2px solid var(--accent); padding-left: 10px;
+  }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 24px; position: relative; overflow: hidden; transition: border-color 0.2s, transform 0.2s;
+  }
+  .stat-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .stat-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+    height: 2px; background: var(--c, var(--accent)); opacity: 0.5;
+  }
+  .stat-icon { font-size: 24px; margin-bottom: 12px; }
+  .stat-label { font-size: 10px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; line-height: 1.4; }
+  .stat-value { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--text); line-height: 1; }
+  .stat-unit { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .stat-year { font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .stat-loading { font-size: 11px; color: var(--muted); animation: pulse 1.5s ease infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+  .stat-bar { margin-top: 12px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .stat-bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+
+  .disclaimer {
+    margin-top: 32px; padding: 16px 24px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 4px; font-size: 11px;
+    color: var(--muted); line-height: 1.7; text-align: center;
+  }
+  .disclaimer a { color: var(--accent); text-decoration: none; }
+  .disclaimer a:hover { text-decoration: underline; }
+  .sources { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+  .source-tag { font-size: 9px; letter-spacing: 2px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 2px; color: var(--muted); text-transform: uppercase; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 600px) {
+    .country-hero { flex-direction: column; gap: 16px; text-align: center; }
+    .country-meta { justify-content: center; }
+    .flag-big { font-size: 48px; }
+    .country-info h2 { font-size: 28px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="container">
+  <header>
+    <div class="header-tag">Live Data Explorer</div>
+    <h1>Global <span>Health</span><br>Observatory</h1>
+    <p class="subtitle">RestCountries API &nbsp;·&nbsp; WHO GHO API &nbsp;·&nbsp; No API Key Required</p>
+  </header>
+
+  <div class="search-section">
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Search any country... e.g. Japan, Nigeria, Brazil" autocomplete="off"/>
+      <button class="search-btn" onclick="search()">SEARCH</button>
+      <div id="suggestions"></div>
+    </div>
+    <div class="quick-picks">
+      <span style="font-size:11px;color:var(--muted);margin-right:4px;align-self:center">Quick:</span>
+      <button class="pick-btn" onclick="loadCountry('India')">🇮🇳 India</button>
+      <button class="pick-btn" onclick="loadCountry('Germany')">🇩🇪 Germany</button>
+      <button class="pick-btn" onclick="loadCountry('Nigeria')">🇳🇬 Nigeria</button>
+      <button class="pick-btn" onclick="loadCountry('Brazil')">🇧🇷 Brazil</button>
+      <button class="pick-btn" onclick="loadCountry('Japan')">🇯🇵 Japan</button>
+      <button class="pick-btn" onclick="loadCountry('United States of America')">🇺🇸 USA</button>
+    </div>
+  </div>
+
+  <div id="loading"><div class="loader"></div>FETCHING DATA...</div>
+  <div id="error"></div>
+
+  <div id="results">
+    <div class="country-hero">
+      <div class="flag-big" id="flagEl"></div>
+      <div class="country-info">
+        <div class="region-badge" id="regionBadge"></div>
+        <h2 id="countryName"></h2>
+        <div class="country-meta" id="countryMeta"></div>
+      </div>
+    </div>
+
+    <div class="section-label">WHO Health Indicators — Live from WHO GHO API</div>
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <div class="disclaimer">
+      Data sourced from <a href="https://www.who.int/data/gho" target="_blank">WHO Global Health Observatory</a> &amp;
+      <a href="https://restcountries.com" target="_blank">RestCountries API</a>.
+      Figures reflect the most recently available year per indicator. Some countries may have limited data.
+      <div class="sources">
+        <span class="source-tag">WHO GHO API</span>
+        <span class="source-tag">RestCountries v3.1</span>
+        <span class="source-tag">No API Key Required</span>
+        <span class="source-tag">Real Data</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const WHO_INDICATORS = [
+  { code: 'WHOSIS_000001', label: 'Life Expectancy', icon: '❤️', unit: 'years at birth', color: '#00e5a0', max: 90 },
+  { code: 'MDG_0000000026', label: 'Under-5 Mortality', icon: '👶', unit: 'per 1,000 live births', color: '#ff6b35', max: 200 },
+  { code: 'WHOSIS_000015', label: 'Adult Mortality (Male)', icon: '♂️', unit: 'per 1,000 adults', color: '#ffd166', max: 500 },
+  { code: 'WHOSIS_000016', label: 'Adult Mortality (Female)', icon: '♀️', unit: 'per 1,000 adults', color: '#ff9ef5', max: 300 },
+  { code: 'NCD_BMI_30C', label: 'Obesity Rate', icon: '⚖️', unit: '% of adults', color: '#3d8bff', max: 60 },
+  { code: 'WHS4_100', label: 'Measles Vaccination', icon: '💉', unit: '% coverage', color: '#00e5a0', max: 100 },
+  { code: 'WHS4_117', label: 'DTP3 Vaccination', icon: '🩺', unit: '% coverage', color: '#00cfff', max: 100 },
+  { code: 'MDG_0000000020', label: 'Maternal Mortality', icon: '🤱', unit: 'per 100,000 live births', color: '#ff6b35', max: 1000 },
+];
+
+let allCountries = [];
+
+async function fetchAllCountries() {
+  try {
+    const res = await fetch('https://restcountries.com/v3.1/all?fields=name,flags,cca3,region,subregion');
+    allCountries = await res.json();
+    allCountries.sort((a,b) => a.name.common.localeCompare(b.name.common));
+  } catch(e) { console.error('Could not preload country list', e); }
+}
+fetchAllCountries();
+
+const searchInput = document.getElementById('searchInput');
+const suggestionsEl = document.getElementById('suggestions');
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim().toLowerCase();
+  if (q.length < 2) { suggestionsEl.className = ''; return; }
+  const matches = allCountries.filter(c => c.name.common.toLowerCase().includes(q)).slice(0, 8);
+  if (!matches.length) { suggestionsEl.className = ''; return; }
+  suggestionsEl.innerHTML = matches.map(c => `
+    <div class="suggestion-item" onclick="loadCountry('${c.name.common.replace(/'/g,"\\'")}')">
+      <span class="s-flag">${c.flags?.emoji || '🏳️'}</span>
+      <span class="s-name">${c.name.common}</span>
+      <span class="s-region">${c.subregion || c.region || ''}</span>
+    </div>`).join('');
+  suggestionsEl.className = 'show';
+});
+
+document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) suggestionsEl.className = ''; });
+searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+
+function search() {
+  const q = searchInput.value.trim();
+  if (q) loadCountry(q);
+}
+
+async function loadCountry(name) {
+  suggestionsEl.className = '';
+  searchInput.value = name;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+
+  try {
+    const res = await fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(name)}`);
+    if (!res.ok) throw new Error('Not found');
+    const data = await res.json();
+    const country = data[0];
+
+    renderHero(country);
+    renderStatCards();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('results').style.display = 'block';
+    fetchWHOData(country.cca3);
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('error').innerHTML = `⚠️ Could not find "<strong>${name}</strong>". Try a different spelling or use the suggestions.`;
+  }
+}
+
+function renderHero(country) {
+  const pop = country.population?.toLocaleString() || 'N/A';
+  const area = country.area ? country.area.toLocaleString() + ' km²' : 'N/A';
+  const capital = country.capital?.[0] || 'N/A';
+  const currencies = country.currencies
+    ? Object.values(country.currencies).map(c => `${c.name}${c.symbol ? ' (' + c.symbol + ')' : ''}`).join(', ')
+    : 'N/A';
+  const langs = country.languages
+    ? Object.values(country.languages).slice(0,3).join(', ')
+    : 'N/A';
+
+  document.getElementById('flagEl').textContent = country.flags?.emoji || '🏳️';
+  document.getElementById('countryName').textContent = country.name.common;
+  document.getElementById('regionBadge').textContent = [country.region, country.subregion].filter(Boolean).join(' · ');
+  document.getElementById('countryMeta').innerHTML = `
+    <div class="meta-item"><span class="meta-label">Population</span><span class="meta-value">${pop}</span></div>
+    <div class="meta-item"><span class="meta-label">Capital</span><span class="meta-value">${capital}</span></div>
+    <div class="meta-item"><span class="meta-label">Area</span><span class="meta-value">${area}</span></div>
+    <div class="meta-item"><span class="meta-label">Currency</span><span class="meta-value">${currencies}</span></div>
+    <div class="meta-item"><span class="meta-label">Languages</span><span class="meta-value">${langs}</span></div>
+  `;
+}
+
+function renderStatCards() {
+  document.getElementById('statsGrid').innerHTML = WHO_INDICATORS.map((ind, i) => `
+    <div class="stat-card" style="--c:${ind.color}">
+      <div class="stat-icon">${ind.icon}</div>
+      <div class="stat-label">${ind.label}</div>
+      <div class="stat-value stat-loading" id="val-${i}">· · ·</div>
+      <div class="stat-unit" id="unit-${i}">${ind.unit}</div>
+      <div class="stat-year" id="year-${i}"></div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="bar-${i}" style="width:0%;background:${ind.color}"></div></div>
+    </div>`).join('');
+}
+
+async function fetchWHOData(iso3) {
+  for (let i = 0; i < WHO_INDICATORS.length; i++) {
+    const ind = WHO_INDICATORS[i];
+    try {
+      const url = `https://ghoapi.azureedge.net/api/${ind.code}?$filter=SpatialDim eq '${iso3}'&$orderby=TimeDimensionBegin desc&$top=10`;
+      const res = await fetch(url);
+      const json = await res.json();
+
+      // Try to find latest record with a numeric value, preferring BTSX (both sexes) or no sex dimension
+      let records = (json.value || []).filter(r => r.NumericValue !== null);
+      let latest = records.find(r => r.Dim1 === 'BTSX') || records.find(r => !r.Dim1) || records[0];
+
+      const valEl = document.getElementById(`val-${i}`);
+      const yearEl = document.getElementById(`year-${i}`);
+      const barEl = document.getElementById(`bar-${i}`);
+
+      if (latest && latest.NumericValue !== null) {
+        const val = latest.NumericValue;
+        valEl.textContent = Number.isInteger(val) ? val : val.toFixed(1);
+        valEl.classList.remove('stat-loading');
+        if (latest.TimeDim) { yearEl.textContent = `Data: ${latest.TimeDim}`; }
+        setTimeout(() => { barEl.style.width = Math.min((val / ind.max) * 100, 100) + '%'; }, 100 + i * 50);
+      } else {
+        valEl.textContent = 'No data';
+        valEl.classList.remove('stat-loading');
+        valEl.style.fontSize = '14px';
+        valEl.style.color = 'var(--muted)';
+      }
+    } catch(e) {
+      const el = document.getElementById(`val-${i}`);
+      if (el) { el.textContent = 'Error'; el.classList.remove('stat-loading'); }
+    }
+  }
+}
+</script>
+</body>
+</html>
