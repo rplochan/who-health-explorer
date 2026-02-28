@@ -198,12 +198,12 @@
     <div class="section-label">WHO Health Indicators — Click any card for details & trends</div>
     <div class="stats-grid" id="statsGrid"></div>
     <div class="disclaimer">
-      Data sourced from <a href="https://www.who.int/data/gho" target="_blank">WHO Global Health Observatory</a> &amp;
-      <a href="https://restcountries.com" target="_blank">RestCountries API</a>.
+      Data sourced from <a href="https://www.who.int/data/gho" target="_blank">WHO Global Health Observatory</a>, <a href="https://restcountries.com" target="_blank">RestCountries API</a> &amp; <a href="https://data.worldbank.org" target="_blank">World Bank API</a>.
       Figures reflect the most recently available year per indicator.
       <div class="sources">
         <span class="source-tag">WHO GHO API</span>
         <span class="source-tag">RestCountries v3.1</span>
+        <span class="source-tag">World Bank API</span>
         <span class="source-tag">No API Key Required</span>
         <span class="source-tag">Real Data</span>
       </div>
@@ -266,6 +266,16 @@ const WHO_INDICATORS = [
     unit: 'per 100,000 live births', color: '#ff6b35', max: 1000,
     description: 'The number of maternal deaths per 100,000 live births. A maternal death is defined as the death of a woman while pregnant or within 42 days of delivery due to causes related to pregnancy. It reflects the quality of antenatal care, skilled birth attendance, and emergency obstetric services. Sub-Saharan Africa accounts for the majority of global maternal deaths. High-income countries typically have rates below 10.'
   },
+  {
+    code: 'UN_MEDIAN_AGE', label: 'Median Age', icon: '🎂',
+    unit: 'years', color: '#c084fc', max: 60, isUN: true, unIndicator: 67,
+    description: 'The median age divides the population into two numerically equal groups — half the population is younger and half is older. A rising median age signals an ageing population with major implications for healthcare costs, pension systems, and labour markets. Japan and Germany have some of the world\'s oldest populations (median age ~48), while many Sub-Saharan African nations are below 20, reflecting high birth rates.'
+  },
+  {
+    code: 'WB_LABOUR_FORCE', label: 'Employability Rate', icon: '💼',
+    unit: '% of working-age population', color: '#a78bfa', max: 100, isWorldBank: true, wbCode: 'SL.TLF.ACTI.ZS',
+    description: 'The labour force participation rate measures the proportion of the working-age population (ages 15+) that is economically active — either employed or actively seeking work. Nordic countries often exceed 75%, while some Middle Eastern and North African countries report below 45%, partly due to lower female participation. Sourced from World Bank / ILO modelled estimates.'
+  },
 ];
 
 const CORS_PROXIES = [
@@ -291,7 +301,7 @@ let chartInstance = null;
 
 async function fetchAllCountries() {
   try {
-    const json = await fetchWithProxy('https://restcountries.com/v3.1/all?fields=name,flags,cca3,region,subregion');
+    const json = await fetchWithProxy('https://restcountries.com/v3.1/all?fields=name,flags,cca2,cca3,region,subregion');
     allCountries = json.sort((a,b) => a.name.common.localeCompare(b.name.common));
   } catch(e) {}
 }
@@ -326,7 +336,7 @@ async function loadCountry(name) {
   document.getElementById('results').style.display = 'none';
   document.getElementById('error').style.display = 'none';
   try {
-    const data = await fetchWithProxy(`https://restcountries.com/v3.1/name/${encodeURIComponent(name)}`);
+    const data = await fetchWithProxy(`https://restcountries.com/v3.1/name/${encodeURIComponent(name)}?fields=name,flags,cca2,cca3,capital,population,area,region,subregion,currencies,languages`);
     if (!data || !data.length) throw new Error('Not found');
     const country = data[0];
     currentISO3 = country.cca3;
@@ -373,10 +383,111 @@ function renderStatCards() {
     </div>`).join('');
 }
 
+async function fetchWorldBankData(iso3, wbCode, i) {
+  const ind = WHO_INDICATORS[i];
+  const url = `https://api.worldbank.org/v2/country/${iso3}/indicator/${wbCode}?format=json&mrv=5&per_page=5`;
+  const json = await fetchWithProxy(url);
+  const records = (json[1] || []).filter(r => r.value !== null);
+  const latest = records[0];
+  const valEl = document.getElementById(`val-${i}`);
+  const yearEl = document.getElementById(`year-${i}`);
+  const barEl = document.getElementById(`bar-${i}`);
+  if (latest && latest.value !== null) {
+    const val = latest.value;
+    valEl.textContent = Number.isInteger(val) ? val : val.toFixed(1);
+    valEl.classList.remove('stat-loading');
+    if (latest.date) yearEl.textContent = `Data: ${latest.date}`;
+    setTimeout(() => { barEl.style.width = Math.min((val / ind.max) * 100, 100) + '%'; }, 100 + i * 50);
+    cardData[i] = { isWorldBank: true, wbCode, iso3, records };
+  } else {
+    valEl.textContent = 'No data';
+    valEl.classList.remove('stat-loading');
+    valEl.style.fontSize = '14px';
+    valEl.style.color = 'var(--muted)';
+  }
+}
+
+async function fetchUNMedianAge(iso3, i) {
+  const ind = WHO_INDICATORS[i];
+  const valEl = document.getElementById(`val-${i}`);
+  const yearEl = document.getElementById(`year-${i}`);
+  const barEl = document.getElementById(`bar-${i}`);
+  try {
+    // UN Population Division API - indicator 67 = Median Age, variant 4 = Medium
+    const url = `https://population.un.org/dataportalapi/api/v1/data/indicators/67/locations/${iso3ToUN(iso3)}/start/2020/end/2025?variants=4&format=json&pageSize=10`;
+    const json = await fetchWithProxy(url);
+    const records = (json.data || []).filter(r => r.value !== null);
+    const latest = records.sort((a,b) => b.timeLabel - a.timeLabel)[0];
+    if (latest) {
+      const val = parseFloat(latest.value);
+      valEl.textContent = val.toFixed(1);
+      valEl.classList.remove('stat-loading');
+      yearEl.textContent = `Data: ${latest.timeLabel}`;
+      setTimeout(() => { barEl.style.width = Math.min((val / ind.max) * 100, 100) + '%'; }, 500);
+      cardData[i] = { isUN: true, records };
+      return;
+    }
+  } catch(e) {}
+  // Fallback: World Bank age dependency ratio converted to approximate median age
+  try {
+    // Use SP.POP.AG.MD.MA — actually let's use the age structure to estimate
+    // SP.POP.0014.TO.ZS = % aged 0-14, SP.POP.65UP.TO.ZS = % aged 65+
+    const url0 = `https://api.worldbank.org/v2/country/${iso3}/indicator/SP.POP.0014.TO.ZS?format=json&mrv=1`;
+    const url1 = `https://api.worldbank.org/v2/country/${iso3}/indicator/SP.POP.65UP.TO.ZS?format=json&mrv=1`;
+    const [j0, j1] = await Promise.all([fetchWithProxy(url0), fetchWithProxy(url1)]);
+    const p0 = j0[1]?.[0]?.value;
+    const p65 = j1[1]?.[0]?.value;
+    if (p0 && p65) {
+      // Simple linear estimate: median age ~ 10 + (100-p0-p65)*0.3 + p65*0.6
+      const pMid = 100 - p0 - p65;
+      const estMedian = parseFloat((p0 * 0.07 + pMid * 0.37 + p65 * 0.72).toFixed(1));
+      valEl.textContent = estMedian;
+      valEl.classList.remove('stat-loading');
+      yearEl.textContent = `Est. from age groups (${j0[1]?.[0]?.date || ''})`;
+      setTimeout(() => { barEl.style.width = Math.min((estMedian / ind.max) * 100, 100) + '%'; }, 500);
+      cardData[i] = { isWorldBank: true, estimated: true };
+      return;
+    }
+  } catch(e) {}
+  valEl.textContent = 'No data';
+  valEl.classList.remove('stat-loading');
+  valEl.style.fontSize = '14px';
+  valEl.style.color = 'var(--muted)';
+}
+
+// Map ISO3 to UN numeric location code for common countries
+const UN_LOC_MAP = {
+  IND:356,USA:840,GBR:826,DEU:276,FRA:250,CHN:156,BRA:76,NGA:566,JPN:392,
+  ZAF:710,RUS:643,AUS:36,CAN:124,ITA:380,ESP:724,MEX:484,IDN:360,PAK:586,
+  BGD:50,ETH:231,EGY:818,PHL:608,COD:180,TZA:834,KEN:404,ARG:32,COL:170,
+  DZA:12,SDN:729,IRQ:368,MAR:504,SAU:682,IRN:364,VEN:862,PER:604,UGA:800,
+  AFG:4,UKR:804,MYS:458,THA:764,GHA:288,MOZ:508,AGO:24,CMR:120,CIV:384,
+  NER:562,MDG:450,AUS:36,SWE:752,NOR:578,DNK:208,FIN:246,NLD:528,BEL:56,
+  CHE:756,AUT:40,POL:616,CZE:203,HUN:348,ROU:642,PRT:620,GRC:300,TUR:792,
+  NZL:554,SGP:702,KOR:410,TWN:158,HKG:344,ISR:376,ARE:784,QAT:634,KWT:414,
+  ZWE:716,ZMB:894,SEN:686,MLI:466,GIN:324,BFA:854,TCD:148,SOM:706
+};
+function iso3ToUN(iso3) { return UN_LOC_MAP[iso3] || 0; }
+
 async function fetchWHOData(iso3) {
+  // Get ISO2 for World Bank API
+  let iso2 = iso3.slice(0,2);
+  try {
+    const rc = allCountries.find(c => c.cca3 === iso3);
+    if (rc && rc.cca2) iso2 = rc.cca2;
+  } catch(e) {}
+
   for (let i = 0; i < WHO_INDICATORS.length; i++) {
     const ind = WHO_INDICATORS[i];
     try {
+      if (ind.isUN) {
+        await fetchUNMedianAge(iso3, i);
+        continue;
+      }
+      if (ind.isWorldBank) {
+        await fetchWorldBankData(iso3, ind.wbCode, i);
+        continue;
+      }
       const url = `https://ghoapi.azureedge.net/api/${ind.code}?$filter=SpatialDim eq '${iso3}'&$orderby=TimeDimensionBegin desc&$top=10`;
       const json = await fetchWithProxy(url);
       let records = (json.value || []).filter(r => r.NumericValue !== null);
@@ -432,15 +543,43 @@ async function openModal(i) {
 
   // Fetch full historical trend
   try {
-    const url = `https://ghoapi.azureedge.net/api/${ind.code}?$filter=SpatialDim eq '${currentISO3}'&$orderby=TimeDimensionBegin asc&$top=50`;
-    const json = await fetchWithProxy(url);
-    let records = (json.value || []).filter(r => r.NumericValue !== null);
-    let filtered = records.filter(r => r.Dim1 === 'BTSX' || !r.Dim1);
-    if (!filtered.length) filtered = records;
-
-    // Deduplicate by year
-    const seen = new Set();
-    const pts = filtered.filter(r => { if (seen.has(r.TimeDim)) return false; seen.add(r.TimeDim); return true; });
+    let pts = [];
+    if (ind.isUN) {
+      const locId = iso3ToUN(currentISO3);
+      if (locId) {
+        const url = `https://population.un.org/dataportalapi/api/v1/data/indicators/67/locations/${locId}/start/1990/end/2025?variants=4&format=json&pageSize=50`;
+        const json = await fetchWithProxy(url);
+        const records = (json.data || []).filter(r => r.value !== null).sort((a,b) => a.timeLabel - b.timeLabel);
+        pts = records.map(r => ({ TimeDim: r.timeLabel, NumericValue: parseFloat(r.value) }));
+      }
+      if (!pts.length) {
+        // Fallback: World Bank age groups over time
+        const url = `https://api.worldbank.org/v2/country/${currentISO3}/indicator/SP.POP.0014.TO.ZS?format=json&mrv=30&per_page=30`;
+        const j0 = await fetchWithProxy(url);
+        const url2 = `https://api.worldbank.org/v2/country/${currentISO3}/indicator/SP.POP.65UP.TO.ZS?format=json&mrv=30&per_page=30`;
+        const j1 = await fetchWithProxy(url2);
+        const r0 = (j0[1]||[]).filter(r=>r.value!==null);
+        const r1 = (j1[1]||[]).filter(r=>r.value!==null);
+        const map1 = Object.fromEntries(r1.map(r=>[r.date, r.value]));
+        pts = r0.filter(r=>map1[r.date]).map(r => {
+          const p0=r.value, p65=map1[r.date], pMid=100-p0-p65;
+          return { TimeDim: r.date, NumericValue: parseFloat((p0*0.07+pMid*0.37+p65*0.72).toFixed(1)) };
+        }).reverse();
+      }
+    } else if (ind.isWorldBank) {
+      const url = `https://api.worldbank.org/v2/country/${currentISO3}/indicator/${ind.wbCode}?format=json&mrv=30&per_page=30`;
+      const json = await fetchWithProxy(url);
+      const records = (json[1] || []).filter(r => r.value !== null).reverse();
+      pts = records.map(r => ({ TimeDim: r.date, NumericValue: r.value }));
+    } else {
+      const url = `https://ghoapi.azureedge.net/api/${ind.code}?$filter=SpatialDim eq '${currentISO3}'&$orderby=TimeDimensionBegin asc&$top=50`;
+      const json = await fetchWithProxy(url);
+      let records = (json.value || []).filter(r => r.NumericValue !== null);
+      let filtered = records.filter(r => r.Dim1 === 'BTSX' || !r.Dim1);
+      if (!filtered.length) filtered = records;
+      const seen = new Set();
+      pts = filtered.filter(r => { if (seen.has(r.TimeDim)) return false; seen.add(r.TimeDim); return true; });
+    }
 
     document.getElementById('trend-loading').style.display = 'none';
 
@@ -452,7 +591,7 @@ async function openModal(i) {
           labels: pts.map(r => r.TimeDim),
           datasets: [{
             label: ind.label,
-            data: pts.map(r => parseFloat(r.NumericValue.toFixed(2))),
+            data: pts.map(r => parseFloat(parseFloat(r.NumericValue).toFixed(2))),
             borderColor: ind.color,
             backgroundColor: ind.color + '18',
             tension: 0.4,
