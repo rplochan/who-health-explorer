@@ -55,7 +55,7 @@
   .suggestion-item { padding: 12px 20px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); transition: background 0.15s; }
   .suggestion-item:last-child { border-bottom: none; }
   .suggestion-item:hover { background: var(--surface); }
-  .suggestion-item .s-flag { font-size: 20px; }
+  .suggestion-item .s-flag { width: 24px; height: 16px; object-fit: cover; border-radius: 2px; flex-shrink: 0; }
   .suggestion-item .s-name { color: var(--text); }
   .suggestion-item .s-region { color: var(--muted); font-size: 11px; margin-left: auto; }
 
@@ -72,7 +72,7 @@
 
   .country-hero { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 32px; margin-bottom: 24px; display: flex; align-items: center; gap: 32px; position: relative; overflow: hidden; }
   .country-hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2), transparent); }
-  .flag-big { font-size: 72px; line-height: 1; flex-shrink: 0; }
+  .flag-big { width: 100px; height: 70px; object-fit: cover; border-radius: 4px; border: 1px solid #1a2640; flex-shrink: 0; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
   .country-info h2 { font-family: 'Playfair Display', serif; font-size: 40px; font-weight: 900; letter-spacing: -1px; margin-bottom: 6px; }
   .country-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 12px; }
   .meta-item { display: flex; flex-direction: column; gap: 2px; }
@@ -149,7 +149,7 @@
   @media (max-width: 600px) {
     .country-hero { flex-direction: column; gap: 16px; text-align: center; }
     .country-meta { justify-content: center; }
-    .flag-big { font-size: 48px; }
+    .flag-big { width: 72px; height: 50px; }
     .country-info h2 { font-size: 28px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
     .modal-value { font-size: 40px; }
@@ -188,7 +188,7 @@
 
   <div id="results">
     <div class="country-hero">
-      <div class="flag-big" id="flagEl"></div>
+      <img class="flag-big" id="flagEl" src="" alt="flag"/>
       <div class="country-info">
         <div class="region-badge" id="regionBadge"></div>
         <h2 id="countryName"></h2>
@@ -373,7 +373,7 @@ searchInput.addEventListener('input', () => {
   if (!matches.length) { suggestionsEl.className = ''; return; }
   suggestionsEl.innerHTML = matches.map(c => `
     <div class="suggestion-item" onclick="loadCountry('${c.name.common.replace(/'/g,"\\'")}')">
-      <span class="s-flag">${c.flags?.emoji || '🏳️'}</span>
+      <img class="s-flag" src="${c.flags?.svg || c.flags?.png || ''}" alt="" onerror="this.style.display='none'" style="width:24px;height:16px;object-fit:cover;border-radius:2px;border:1px solid #1a2640;"/>
       <span class="s-name">${c.name.common}</span>
       <span class="s-region">${c.subregion || c.region || ''}</span>
     </div>`).join('');
@@ -414,7 +414,7 @@ function renderHero(country) {
   const capital = country.capital?.[0] || 'N/A';
   const currencies = country.currencies ? Object.values(country.currencies).map(c => `${c.name}${c.symbol ? ' (' + c.symbol + ')' : ''}`).join(', ') : 'N/A';
   const langs = country.languages ? Object.values(country.languages).slice(0,3).join(', ') : 'N/A';
-  document.getElementById('flagEl').textContent = country.flags?.emoji || '🏳️';
+  document.getElementById('flagEl').src = country.flags?.svg || country.flags?.png || ''; document.getElementById('flagEl').alt = country.name.common + ' flag';
   document.getElementById('countryName').textContent = country.name.common;
   document.getElementById('regionBadge').textContent = [country.region, country.subregion].filter(Boolean).join(' · ');
   document.getElementById('countryMeta').innerHTML = `
