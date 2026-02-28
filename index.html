@@ -5,38 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WHO Health Explorer</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #07090f;
-    --surface: #0e1420;
-    --card: #131b2e;
-    --border: #1a2640;
-    --accent: #00e5a0;
-    --accent2: #3d8bff;
-    --accent3: #ff6b35;
-    --warn: #ffd166;
-    --text: #dce8f5;
-    --muted: #4a5f7a;
-    --dim: #8a9db5;
+    --bg: #07090f; --surface: #0e1420; --card: #131b2e; --border: #1a2640;
+    --accent: #00e5a0; --accent2: #3d8bff; --accent3: #ff6b35;
+    --text: #dce8f5; --muted: #4a5f7a; --dim: #8a9db5;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; overflow-x: hidden; }
   body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
   }
   .orb { position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0; }
   .orb1 { width: 500px; height: 500px; background: rgba(0,229,160,0.05); top: -100px; left: -100px; }
@@ -44,11 +25,7 @@
   .container { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
 
   header { padding: 48px 0 32px; text-align: center; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
-  .header-tag {
-    display: inline-block; font-size: 10px; letter-spacing: 4px; color: var(--accent);
-    text-transform: uppercase; margin-bottom: 16px; padding: 6px 16px;
-    border: 1px solid rgba(0,229,160,0.3); border-radius: 2px;
-  }
+  .header-tag { display: inline-block; font-size: 10px; letter-spacing: 4px; color: var(--accent); text-transform: uppercase; margin-bottom: 16px; padding: 6px 16px; border: 1px solid rgba(0,229,160,0.3); border-radius: 2px; }
   h1 { font-family: 'Playfair Display', serif; font-size: clamp(36px, 6vw, 72px); font-weight: 900; line-height: 1; letter-spacing: -2px; margin-bottom: 12px; }
   h1 span { color: var(--accent); font-style: italic; }
   .subtitle { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
@@ -75,11 +52,7 @@
     max-height: 220px; overflow-y: auto; z-index: 100; display: none;
   }
   #suggestions.show { display: block; }
-  .suggestion-item {
-    padding: 12px 20px; cursor: pointer; font-size: 13px;
-    display: flex; align-items: center; gap: 12px;
-    border-bottom: 1px solid var(--border); transition: background 0.15s;
-  }
+  .suggestion-item { padding: 12px 20px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); transition: background 0.15s; }
   .suggestion-item:last-child { border-bottom: none; }
   .suggestion-item:hover { background: var(--surface); }
   .suggestion-item .s-flag { font-size: 20px; }
@@ -87,56 +60,39 @@
   .suggestion-item .s-region { color: var(--muted); font-size: 11px; margin-left: auto; }
 
   .quick-picks { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
-  .pick-btn {
-    background: transparent; border: 1px solid var(--border); color: var(--dim);
-    padding: 6px 14px; border-radius: 2px; font-family: 'DM Mono', monospace;
-    font-size: 11px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
-  }
+  .pick-btn { background: transparent; border: 1px solid var(--border); color: var(--dim); padding: 6px 14px; border-radius: 2px; font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; }
   .pick-btn:hover { border-color: var(--accent); color: var(--accent); }
 
   #loading { display: none; text-align: center; padding: 60px; color: var(--muted); font-size: 12px; letter-spacing: 2px; }
   .loader { width: 40px; height: 40px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   #error { display: none; text-align: center; padding: 40px; color: var(--accent3); font-size: 13px; }
   #results { display: none; animation: fadeUp 0.4s ease; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-  .country-hero {
-    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
-    padding: 32px; margin-bottom: 24px; display: flex; align-items: center;
-    gap: 32px; position: relative; overflow: hidden;
-  }
-  .country-hero::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2), transparent);
-  }
+  .country-hero { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 32px; margin-bottom: 24px; display: flex; align-items: center; gap: 32px; position: relative; overflow: hidden; }
+  .country-hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2), transparent); }
   .flag-big { font-size: 72px; line-height: 1; flex-shrink: 0; }
   .country-info h2 { font-family: 'Playfair Display', serif; font-size: 40px; font-weight: 900; letter-spacing: -1px; margin-bottom: 6px; }
   .country-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 12px; }
   .meta-item { display: flex; flex-direction: column; gap: 2px; }
   .meta-label { font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
   .meta-value { font-size: 14px; color: var(--text); }
-  .region-badge {
-    display: inline-block; background: rgba(61,139,255,0.1); border: 1px solid rgba(61,139,255,0.3);
-    color: var(--accent2); padding: 3px 10px; border-radius: 2px; font-size: 10px;
-    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
-  }
+  .region-badge { display: inline-block; background: rgba(61,139,255,0.1); border: 1px solid rgba(61,139,255,0.3); color: var(--accent2); padding: 3px 10px; border-radius: 2px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
 
-  .section-label {
-    font-size: 10px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
-    margin-bottom: 16px; border-left: 2px solid var(--accent); padding-left: 10px;
-  }
+  .section-label { font-size: 10px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 16px; border-left: 2px solid var(--accent); padding-left: 10px; }
   .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
+
   .stat-card {
     background: var(--card); border: 1px solid var(--border); border-radius: 6px;
-    padding: 24px; position: relative; overflow: hidden; transition: border-color 0.2s, transform 0.2s;
+    padding: 24px; position: relative; overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
   }
-  .stat-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .stat-card::after {
-    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
-    height: 2px; background: var(--c, var(--accent)); opacity: 0.5;
-  }
+  .stat-card:hover { border-color: var(--c, var(--accent)); transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .stat-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--c, var(--accent)); opacity: 0.5; }
+  .click-hint { position: absolute; top: 10px; right: 12px; font-size: 9px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; opacity: 0; transition: opacity 0.2s; }
+  .stat-card:hover .click-hint { opacity: 1; }
   .stat-icon { font-size: 24px; margin-bottom: 12px; }
   .stat-label { font-size: 10px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; line-height: 1.4; }
   .stat-value { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--text); line-height: 1; }
@@ -147,11 +103,40 @@
   .stat-bar { margin-top: 12px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
   .stat-bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
 
-  .disclaimer {
-    margin-top: 32px; padding: 16px 24px; background: var(--surface);
-    border: 1px solid var(--border); border-radius: 4px; font-size: 11px;
-    color: var(--muted); line-height: 1.7; text-align: center;
+  /* MODAL */
+  #modal {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85); z-index: 999;
+    align-items: center; justify-content: center;
+    animation: fadeIn 0.2s ease;
   }
+  #modal.show { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal-box {
+    background: #131b2e; border: 1px solid #1a2640; border-radius: 8px;
+    padding: 36px; max-width: 680px; width: 92%; max-height: 88vh;
+    overflow-y: auto; position: relative; animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-close {
+    position: absolute; top: 16px; right: 16px; background: var(--surface);
+    border: 1px solid var(--border); color: var(--dim); font-size: 16px;
+    width: 32px; height: 32px; border-radius: 4px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  }
+  .modal-close:hover { border-color: var(--accent3); color: var(--accent3); }
+  .modal-icon { font-size: 36px; margin-bottom: 10px; }
+  .modal-tag { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  .modal-value { font-family: 'Playfair Display', serif; font-size: 56px; font-weight: 900; line-height: 1; margin-bottom: 4px; }
+  .modal-unit { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .modal-year { font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+  .modal-desc { font-size: 12px; color: var(--dim); line-height: 1.9; margin-bottom: 24px; padding: 16px; background: var(--surface); border-radius: 4px; border-left: 2px solid var(--accent); }
+  .modal-section { font-size: 10px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; border-left: 2px solid var(--accent2); padding-left: 10px; }
+  .trend-loading { font-size: 11px; color: var(--muted); padding: 16px 0; }
+  .chart-wrap { margin-top: 8px; }
+  .no-data-msg { font-size: 12px; color: var(--muted); padding: 20px; text-align: center; background: var(--surface); border-radius: 4px; }
+
+  .disclaimer { margin-top: 32px; padding: 16px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; color: var(--muted); line-height: 1.7; text-align: center; }
   .disclaimer a { color: var(--accent); text-decoration: none; }
   .disclaimer a:hover { text-decoration: underline; }
   .sources { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
@@ -167,6 +152,7 @@
     .flag-big { font-size: 48px; }
     .country-info h2 { font-size: 28px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
+    .modal-value { font-size: 40px; }
   }
 </style>
 </head>
@@ -177,7 +163,7 @@
   <header>
     <div class="header-tag">Live Data Explorer</div>
     <h1>Global <span>Health</span><br>Observatory</h1>
-    <p class="subtitle">RestCountries API &nbsp;·&nbsp; WHO GHO API &nbsp;·&nbsp; No API Key Required</p>
+    <p class="subtitle">RestCountries API &nbsp;·&nbsp; WHO GHO API &nbsp;·&nbsp; Click any card for details</p>
   </header>
 
   <div class="search-section">
@@ -209,14 +195,12 @@
         <div class="country-meta" id="countryMeta"></div>
       </div>
     </div>
-
-    <div class="section-label">WHO Health Indicators — Live from WHO GHO API</div>
+    <div class="section-label">WHO Health Indicators — Click any card for details & trends</div>
     <div class="stats-grid" id="statsGrid"></div>
-
     <div class="disclaimer">
       Data sourced from <a href="https://www.who.int/data/gho" target="_blank">WHO Global Health Observatory</a> &amp;
       <a href="https://restcountries.com" target="_blank">RestCountries API</a>.
-      Figures reflect the most recently available year per indicator. Some countries may have limited data.
+      Figures reflect the most recently available year per indicator.
       <div class="sources">
         <span class="source-tag">WHO GHO API</span>
         <span class="source-tag">RestCountries v3.1</span>
@@ -227,26 +211,89 @@
   </div>
 </div>
 
+<!-- MODAL -->
+<div id="modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-content"></div>
+    <div id="trend-section" style="margin-top:24px;">
+      <div class="modal-section">📈 Historical Trend</div>
+      <div id="trend-loading" class="trend-loading">Loading trend data...</div>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
 <script>
 const WHO_INDICATORS = [
-  { code: 'WHOSIS_000001', label: 'Life Expectancy', icon: '❤️', unit: 'years at birth', color: '#00e5a0', max: 90 },
-  { code: 'MDG_0000000026', label: 'Under-5 Mortality', icon: '👶', unit: 'per 1,000 live births', color: '#ff6b35', max: 200 },
-  { code: 'WHOSIS_000015', label: 'Adult Mortality (Male)', icon: '♂️', unit: 'per 1,000 adults', color: '#ffd166', max: 500 },
-  { code: 'WHOSIS_000016', label: 'Adult Mortality (Female)', icon: '♀️', unit: 'per 1,000 adults', color: '#ff9ef5', max: 300 },
-  { code: 'NCD_BMI_30C', label: 'Obesity Rate', icon: '⚖️', unit: '% of adults', color: '#3d8bff', max: 60 },
-  { code: 'WHS4_100', label: 'Measles Vaccination', icon: '💉', unit: '% coverage', color: '#00e5a0', max: 100 },
-  { code: 'WHS4_117', label: 'DTP3 Vaccination', icon: '🩺', unit: '% coverage', color: '#00cfff', max: 100 },
-  { code: 'MDG_0000000020', label: 'Maternal Mortality', icon: '🤱', unit: 'per 100,000 live births', color: '#ff6b35', max: 1000 },
+  {
+    code: 'WHOSIS_000001', label: 'Life Expectancy', icon: '❤️',
+    unit: 'years at birth', color: '#00e5a0', max: 90,
+    description: 'The average number of years a newborn is expected to live if current mortality rates continue. It is one of the most widely used summary measures of population health. Countries with better healthcare, nutrition, sanitation, and living standards tend to have higher life expectancy. The global average is around 73 years, while high-income countries often exceed 80 years.'
+  },
+  {
+    code: 'MDG_0000000026', label: 'Under-5 Mortality', icon: '👶',
+    unit: 'per 1,000 live births', color: '#ff6b35', max: 200,
+    description: 'The probability of a child dying between birth and exactly 5 years of age, expressed per 1,000 live births. It reflects the overall standard of living including access to clean water, nutrition, vaccines, and basic healthcare. Lower values indicate better child survival rates. The global rate has dropped significantly — from 93 in 1990 to around 38 today.'
+  },
+  {
+    code: 'WHOSIS_000015', label: 'Adult Mortality (Male)', icon: '♂️',
+    unit: 'per 1,000 adults', color: '#ffd166', max: 500,
+    description: 'The probability (per 1,000) that a 15-year-old male will die before reaching age 60. This indicator captures premature adult death from diseases, injuries, violence, and lifestyle factors. High values may indicate poor access to healthcare, high rates of non-communicable diseases, or conflict. Males generally have higher mortality than females globally.'
+  },
+  {
+    code: 'WHOSIS_000016', label: 'Adult Mortality (Female)', icon: '♀️',
+    unit: 'per 1,000 adults', color: '#ff9ef5', max: 300,
+    description: 'The probability (per 1,000) that a 15-year-old female will die before reaching age 60. Women globally tend to outlive men, but this gap varies significantly by region. In some developing regions, high maternal mortality can close this gap. Better access to reproductive healthcare and education strongly improves female adult survival rates.'
+  },
+  {
+    code: 'NCD_BMI_30C', label: 'Obesity Rate', icon: '⚖️',
+    unit: '% of adults', color: '#3d8bff', max: 60,
+    description: 'The percentage of adults (age 18+) with a Body Mass Index (BMI) of 30 or higher. Obesity is a major risk factor for cardiovascular diseases, diabetes, musculoskeletal disorders, and some cancers. Rates have nearly tripled globally since 1975. High-income countries in the Pacific and Americas often show the highest rates, while some Asian and African countries remain below 10%.'
+  },
+  {
+    code: 'WHS4_100', label: 'Measles Vaccination', icon: '💉',
+    unit: '% coverage', color: '#00e5a0', max: 100,
+    description: 'The percentage of children who received the measles vaccine (first dose) by age 1. Measles vaccination is one of the most cost-effective health interventions — a 95%+ coverage rate is needed to achieve herd immunity and prevent outbreaks. Gaps in coverage can lead to resurgences even in wealthy countries. This is a strong proxy for overall immunisation programme quality.'
+  },
+  {
+    code: 'WHS4_117', label: 'DTP3 Vaccination', icon: '🩺',
+    unit: '% coverage', color: '#00cfff', max: 100,
+    description: 'Percentage of children who received 3 doses of the DTP vaccine (Diphtheria, Tetanus, and Pertussis/Whooping Cough) by age 1. DTP3 coverage is a widely used indicator of a country\'s immunisation system strength. The WHO recommends at least 90% national coverage and 80% in every district. Falling coverage raises the risk of outbreaks of these potentially fatal childhood diseases.'
+  },
+  {
+    code: 'MDG_0000000020', label: 'Maternal Mortality', icon: '🤱',
+    unit: 'per 100,000 live births', color: '#ff6b35', max: 1000,
+    description: 'The number of maternal deaths per 100,000 live births. A maternal death is defined as the death of a woman while pregnant or within 42 days of delivery due to causes related to pregnancy. It reflects the quality of antenatal care, skilled birth attendance, and emergency obstetric services. Sub-Saharan Africa accounts for the majority of global maternal deaths. High-income countries typically have rates below 10.'
+  },
 ];
 
+const CORS_PROXIES = [
+  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url) => url,
+];
+
+async function fetchWithProxy(url) {
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const res = await fetch(proxy(url), { signal: AbortSignal.timeout(8000) });
+      if (res.ok) return JSON.parse(await res.text());
+    } catch(e) { continue; }
+  }
+  throw new Error('All proxies failed');
+}
+
 let allCountries = [];
+let currentISO3 = '';
+let cardData = {};
+let chartInstance = null;
 
 async function fetchAllCountries() {
   try {
-    const res = await fetch('https://restcountries.com/v3.1/all?fields=name,flags,cca3,region,subregion');
-    allCountries = await res.json();
-    allCountries.sort((a,b) => a.name.common.localeCompare(b.name.common));
-  } catch(e) { console.error('Could not preload country list', e); }
+    const json = await fetchWithProxy('https://restcountries.com/v3.1/all?fields=name,flags,cca3,region,subregion');
+    allCountries = json.sort((a,b) => a.name.common.localeCompare(b.name.common));
+  } catch(e) {}
 }
 fetchAllCountries();
 
@@ -269,25 +316,20 @@ searchInput.addEventListener('input', () => {
 
 document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) suggestionsEl.className = ''; });
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
-
-function search() {
-  const q = searchInput.value.trim();
-  if (q) loadCountry(q);
-}
+function search() { const q = searchInput.value.trim(); if (q) loadCountry(q); }
 
 async function loadCountry(name) {
   suggestionsEl.className = '';
   searchInput.value = name;
+  cardData = {};
   document.getElementById('loading').style.display = 'block';
   document.getElementById('results').style.display = 'none';
   document.getElementById('error').style.display = 'none';
-
   try {
-    const res = await fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(name)}`);
-    if (!res.ok) throw new Error('Not found');
-    const data = await res.json();
+    const data = await fetchWithProxy(`https://restcountries.com/v3.1/name/${encodeURIComponent(name)}`);
+    if (!data || !data.length) throw new Error('Not found');
     const country = data[0];
-
+    currentISO3 = country.cca3;
     renderHero(country);
     renderStatCards();
     document.getElementById('loading').style.display = 'none';
@@ -296,7 +338,7 @@ async function loadCountry(name) {
   } catch(e) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('error').style.display = 'block';
-    document.getElementById('error').innerHTML = `⚠️ Could not find "<strong>${name}</strong>". Try a different spelling or use the suggestions.`;
+    document.getElementById('error').innerHTML = `⚠️ Could not find "<strong>${name}</strong>". Try a different spelling.`;
   }
 }
 
@@ -304,13 +346,8 @@ function renderHero(country) {
   const pop = country.population?.toLocaleString() || 'N/A';
   const area = country.area ? country.area.toLocaleString() + ' km²' : 'N/A';
   const capital = country.capital?.[0] || 'N/A';
-  const currencies = country.currencies
-    ? Object.values(country.currencies).map(c => `${c.name}${c.symbol ? ' (' + c.symbol + ')' : ''}`).join(', ')
-    : 'N/A';
-  const langs = country.languages
-    ? Object.values(country.languages).slice(0,3).join(', ')
-    : 'N/A';
-
+  const currencies = country.currencies ? Object.values(country.currencies).map(c => `${c.name}${c.symbol ? ' (' + c.symbol + ')' : ''}`).join(', ') : 'N/A';
+  const langs = country.languages ? Object.values(country.languages).slice(0,3).join(', ') : 'N/A';
   document.getElementById('flagEl').textContent = country.flags?.emoji || '🏳️';
   document.getElementById('countryName').textContent = country.name.common;
   document.getElementById('regionBadge').textContent = [country.region, country.subregion].filter(Boolean).join(' · ');
@@ -325,11 +362,12 @@ function renderHero(country) {
 
 function renderStatCards() {
   document.getElementById('statsGrid').innerHTML = WHO_INDICATORS.map((ind, i) => `
-    <div class="stat-card" style="--c:${ind.color}">
+    <div class="stat-card" style="--c:${ind.color}" onclick="openModal(${i})">
+      <span class="click-hint">tap for details</span>
       <div class="stat-icon">${ind.icon}</div>
       <div class="stat-label">${ind.label}</div>
       <div class="stat-value stat-loading" id="val-${i}">· · ·</div>
-      <div class="stat-unit" id="unit-${i}">${ind.unit}</div>
+      <div class="stat-unit">${ind.unit}</div>
       <div class="stat-year" id="year-${i}"></div>
       <div class="stat-bar"><div class="stat-bar-fill" id="bar-${i}" style="width:0%;background:${ind.color}"></div></div>
     </div>`).join('');
@@ -340,12 +378,10 @@ async function fetchWHOData(iso3) {
     const ind = WHO_INDICATORS[i];
     try {
       const url = `https://ghoapi.azureedge.net/api/${ind.code}?$filter=SpatialDim eq '${iso3}'&$orderby=TimeDimensionBegin desc&$top=10`;
-      const res = await fetch(url);
-      const json = await res.json();
-
-      // Try to find latest record with a numeric value, preferring BTSX (both sexes) or no sex dimension
+      const json = await fetchWithProxy(url);
       let records = (json.value || []).filter(r => r.NumericValue !== null);
       let latest = records.find(r => r.Dim1 === 'BTSX') || records.find(r => !r.Dim1) || records[0];
+      cardData[i] = { records, latest };
 
       const valEl = document.getElementById(`val-${i}`);
       const yearEl = document.getElementById(`year-${i}`);
@@ -355,7 +391,7 @@ async function fetchWHOData(iso3) {
         const val = latest.NumericValue;
         valEl.textContent = Number.isInteger(val) ? val : val.toFixed(1);
         valEl.classList.remove('stat-loading');
-        if (latest.TimeDim) { yearEl.textContent = `Data: ${latest.TimeDim}`; }
+        if (latest.TimeDim) yearEl.textContent = `Data: ${latest.TimeDim}`;
         setTimeout(() => { barEl.style.width = Math.min((val / ind.max) * 100, 100) + '%'; }, 100 + i * 50);
       } else {
         valEl.textContent = 'No data';
@@ -369,6 +405,104 @@ async function fetchWHOData(iso3) {
     }
   }
 }
+
+async function openModal(i) {
+  const ind = WHO_INDICATORS[i];
+  const val = document.getElementById(`val-${i}`).textContent;
+  const year = document.getElementById(`year-${i}`).textContent;
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-icon">${ind.icon}</div>
+    <div class="modal-tag">${ind.label}</div>
+    <div class="modal-value" style="color:${ind.color}">${val}</div>
+    <div class="modal-unit">${ind.unit}</div>
+    <div class="modal-year">${year || ''}</div>
+    <div class="modal-desc">${ind.description}</div>
+  `;
+
+  document.getElementById('trend-loading').style.display = 'block';
+  document.getElementById('trend-loading').textContent = 'Loading trend data...';
+  document.getElementById('trendChart').style.display = 'none';
+
+  const modal = document.getElementById('modal');
+  modal.classList.add('show');
+  modal.style.display = 'flex';
+
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+  // Fetch full historical trend
+  try {
+    const url = `https://ghoapi.azureedge.net/api/${ind.code}?$filter=SpatialDim eq '${currentISO3}'&$orderby=TimeDimensionBegin asc&$top=50`;
+    const json = await fetchWithProxy(url);
+    let records = (json.value || []).filter(r => r.NumericValue !== null);
+    let filtered = records.filter(r => r.Dim1 === 'BTSX' || !r.Dim1);
+    if (!filtered.length) filtered = records;
+
+    // Deduplicate by year
+    const seen = new Set();
+    const pts = filtered.filter(r => { if (seen.has(r.TimeDim)) return false; seen.add(r.TimeDim); return true; });
+
+    document.getElementById('trend-loading').style.display = 'none';
+
+    if (pts.length > 1) {
+      document.getElementById('trendChart').style.display = 'block';
+      chartInstance = new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+          labels: pts.map(r => r.TimeDim),
+          datasets: [{
+            label: ind.label,
+            data: pts.map(r => parseFloat(r.NumericValue.toFixed(2))),
+            borderColor: ind.color,
+            backgroundColor: ind.color + '18',
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: ind.color,
+            pointBorderColor: '#131b2e',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0e1420',
+              borderColor: '#1a2640',
+              borderWidth: 1,
+              titleColor: '#8a9db5',
+              bodyColor: ind.color,
+              titleFont: { family: 'DM Mono', size: 11 },
+              bodyFont: { family: 'DM Mono', size: 13 },
+              callbacks: { label: ctx => `  ${ctx.parsed.y.toFixed(1)} ${ind.unit}` }
+            }
+          },
+          scales: {
+            x: { ticks: { color: '#4a5f7a', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#1a2640' } },
+            y: { ticks: { color: '#4a5f7a', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#1a2640' } }
+          }
+        }
+      });
+    } else {
+      document.getElementById('trend-loading').textContent = 'Not enough historical data available for this country.';
+      document.getElementById('trend-loading').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('trend-loading').textContent = 'Could not load trend data.';
+    document.getElementById('trend-loading').style.display = 'block';
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+  document.getElementById('modal').classList.remove('show');
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
 </script>
 </body>
 </html>
