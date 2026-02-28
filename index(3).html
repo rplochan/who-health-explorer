@@ -294,6 +294,62 @@ async function fetchWithProxy(url) {
   throw new Error('All proxies failed');
 }
 
+
+// ===== ROAST ENGINE =====
+function getRoast(label, value) {
+  if (value === null || value === undefined || isNaN(value)) return null;
+  const v = parseFloat(value);
+
+  if (label === 'Life Expectancy') {
+    if (v >= 82) return "🏆 People here are basically unlocking the 'Extended Warranty' package.";
+    if (v >= 75) return "🕯️ Solid longevity. The candles cost more than the cake.";
+    if (v >= 65) return "📈 Respectable… but we can squeeze a few more birthdays.";
+    return "⚠️ Healthcare needs a serious level-up.";
+  }
+  if (label === 'Under-5 Mortality') {
+    if (v < 5)  return "💪 Babies are off to a strong start.";
+    if (v < 20) return "📊 Room for improvement, but not alarming.";
+    if (v < 50) return "🔧 Tiny humans need better backup.";
+    return "🚨 Public health department, we need to talk.";
+  }
+  if (label === 'Adult Mortality (Male)' || label === 'Adult Mortality (Female)') {
+    if (v < 100) return "✅ Adults are surviving adulthood successfully.";
+    if (v < 250) return "😅 Stress levels might be winning.";
+    return "🏥 Healthcare system is working overtime.";
+  }
+  if (label === 'Obesity Rate') {
+    if (v < 15) return "🥗 Salads are clearly trending.";
+    if (v < 25) return "⚖️ Balanced… mostly.";
+    if (v < 35) return "🏋️ Gym memberships are optional, apparently.";
+    return "🍔 Fast food might be the national sport.";
+  }
+  if (label === 'Measles Vaccination' || label === 'DTP3 Vaccination') {
+    if (v >= 95) return "🦠 Viruses saw this and cancelled their plans.";
+    if (v >= 80) return "⚡ Immune system: fully charged.";
+    if (v >= 60) return "🐢 We're getting there… slowly.";
+    return "😬 The viruses are feeling optimistic.";
+  }
+  if (label === 'Maternal Mortality') {
+    if (v < 10)  return "🌸 Mothers are in the safest of hands.";
+    if (v < 100) return "🔧 Healthcare support could still improve.";
+    return "🚨 Maternal care needs urgent attention.";
+  }
+  if (label === 'Median Age') {
+    if (v < 25) return "🔥 Young energy everywhere.";
+    if (v < 35) return "💡 Prime productivity zone.";
+    if (v < 45) return "🧠 Experienced and stable.";
+    return "🎓 Wisdom levels are dangerously high.";
+  }
+  if (label === 'Employability Rate') {
+    if (v >= 90) return "⏰ Everyone's got a Monday alarm.";
+    if (v >= 70) return "🏃 Economy is doing decent cardio.";
+    if (v >= 50) return "☕ Job market needs some motivation.";
+    return "💼 LinkedIn activity intensifies.";
+  }
+  return null;
+}
+// ===== END ROAST ENGINE =====
+
 let allCountries = [];
 let currentISO3 = '';
 let cardData = {};
@@ -379,6 +435,7 @@ function renderStatCards() {
       <div class="stat-value stat-loading" id="val-${i}">· · ·</div>
       <div class="stat-unit">${ind.unit}</div>
       <div class="stat-year" id="year-${i}"></div>
+      <div class="roast-badge" id="roast-${i}" style="display:none;margin-top:10px;font-size:10.5px;color:#8a9db5;line-height:1.6;font-style:italic;border-top:1px solid #1a2640;padding-top:8px;"></div>
       <div class="stat-bar"><div class="stat-bar-fill" id="bar-${i}" style="width:0%;background:${ind.color}"></div></div>
     </div>`).join('');
 }
@@ -399,6 +456,8 @@ async function fetchWorldBankData(iso3, wbCode, i) {
     if (latest.date) yearEl.textContent = `Data: ${latest.date}`;
     setTimeout(() => { barEl.style.width = Math.min((val / ind.max) * 100, 100) + '%'; }, 100 + i * 50);
     cardData[i] = { isWorldBank: true, wbCode, iso3, records };
+    const roast = getRoast(ind.label, val);
+    if (roast) { const rb = document.getElementById(`roast-${i}`); if(rb){rb.textContent=roast;rb.style.display='block';} }
   } else {
     valEl.textContent = 'No data';
     valEl.classList.remove('stat-loading');
@@ -425,6 +484,8 @@ async function fetchUNMedianAge(iso3, i) {
       yearEl.textContent = `Data: ${latest.timeLabel}`;
       setTimeout(() => { barEl.style.width = Math.min((val / ind.max) * 100, 100) + '%'; }, 500);
       cardData[i] = { isUN: true, records };
+      const roastUN = getRoast(ind.label, val);
+      if (roastUN) { const rb = document.getElementById(`roast-${i}`); if(rb){rb.textContent=roastUN;rb.style.display='block';} }
       return;
     }
   } catch(e) {}
@@ -446,6 +507,8 @@ async function fetchUNMedianAge(iso3, i) {
       yearEl.textContent = `Est. from age groups (${j0[1]?.[0]?.date || ''})`;
       setTimeout(() => { barEl.style.width = Math.min((estMedian / ind.max) * 100, 100) + '%'; }, 500);
       cardData[i] = { isWorldBank: true, estimated: true };
+      const roastEst = getRoast(ind.label, estMedian);
+      if (roastEst) { const rb = document.getElementById(`roast-${i}`); if(rb){rb.textContent=roastEst;rb.style.display='block';} }
       return;
     }
   } catch(e) {}
@@ -500,10 +563,13 @@ async function fetchWHOData(iso3) {
 
       if (latest && latest.NumericValue !== null) {
         const val = latest.NumericValue;
-        valEl.textContent = Number.isInteger(val) ? val : val.toFixed(1);
+        const displayVal = Number.isInteger(val) ? val : val.toFixed(1);
+        valEl.textContent = displayVal;
         valEl.classList.remove('stat-loading');
         if (latest.TimeDim) yearEl.textContent = `Data: ${latest.TimeDim}`;
         setTimeout(() => { barEl.style.width = Math.min((val / ind.max) * 100, 100) + '%'; }, 100 + i * 50);
+        const roast = getRoast(ind.label, val);
+        if (roast) { const rb = document.getElementById(`roast-${i}`); if(rb){rb.textContent=roast;rb.style.display='block';} }
       } else {
         valEl.textContent = 'No data';
         valEl.classList.remove('stat-loading');
@@ -529,6 +595,7 @@ async function openModal(i) {
     <div class="modal-unit">${ind.unit}</div>
     <div class="modal-year">${year || ''}</div>
     <div class="modal-desc">${ind.description}</div>
+    ${getRoast(ind.label, parseFloat(val)) ? `<div style="margin-top:12px;padding:14px 18px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.2);border-radius:6px;font-size:12px;color:#00e5a0;font-style:italic;line-height:1.7;">${getRoast(ind.label, parseFloat(val))}</div>` : ''}
   `;
 
   document.getElementById('trend-loading').style.display = 'block';
